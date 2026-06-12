@@ -226,3 +226,6 @@ __marimo__/
 # Specs and Claude
 specs/
 CLAUDE.md
+
+# Docker
+docker-compose.dev.yml
