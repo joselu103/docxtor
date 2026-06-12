@@ -1,0 +1,31 @@
+# .github/workflows/ci-cd.yml
+name: CI/CD
+run-name: ${{ github.actor }} is pushing changes.
+on:
+  workflow_dispatch:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+jobs:
+  build:
+    name: Run ruff and tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Copy project files
+        uses: actions/checkout@v6
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v8.1.0
+      - name: Set-up environment
+        run: |
+          uv sync
+      - name: Run Ruff linter
+        run: |
+          uv run ruff check .
+      - name: Run Ruff formatter
+        run: |
+          uv run ruff format --check .
+      - name: Run tests
+        run: |
+          uv run pytest
