@@ -28,6 +28,7 @@ class Settings(BaseSettings):
 
     # Embedding
     voyage_api_key: SecretStr
+    vector_dim: int
 
 
 @lru_cache
