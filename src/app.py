@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from src.database.engine import dispose_db, init_db
 from src.settings.settings import get_settings
 from src.shared.logging_config import configure_logging
+from src.shared.router import api_router
 
 logger = structlog.get_logger()
 
@@ -37,7 +38,7 @@ def create_app() -> FastAPI:
         ),
         lifespan=lifespan,
     )
-
+    app.include_router(api_router)
     return app
 
 
