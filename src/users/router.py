@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.engine import get_db, transaction
 from src.users.schemas import UserCreate, UserResponse
-from src.users.service import RegisterError, UserService
+from src.users.service import DuplicateUserError, UserService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -37,7 +37,8 @@ async def register_user(
         async with transaction(user_service.session):
             new_user = await user_service.register_new_user(user_data)
             return UserResponse.model_validate(new_user)
-    except RegisterError:
+
+    except DuplicateUserError:
         raise HTTPException(
             status.HTTP_409_CONFLICT, "Username or email already in use."
         )

@@ -1,5 +1,7 @@
 # src/users/service.py
 
+import structlog
+from asyncpg.exceptions import UniqueViolationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,9 +10,14 @@ from src.users.repository import UserRepository
 from src.users.schemas import UserCreate
 from src.users.security import hash_password
 
+logger = structlog.get_logger()
+
 
 # Exceptions
 class RegisterError(Exception): ...
+
+
+class DuplicateUserError(RegisterError): ...
 
 
 # Services
@@ -40,4 +47,8 @@ class UserService:
             await self.user_repo.create(new_user)
             return new_user
         except IntegrityError as e:
-            raise RegisterError(f"Unable to create new user: {e}")
+            await logger.aexception(e)
+            if isinstance(e.orig.__cause__, UniqueViolationError):
+                raise DuplicateUserError("Username or email already in use")
+            await logger.aexception(e)
+            raise
