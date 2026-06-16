@@ -50,5 +50,5 @@ class UserService:
             await logger.aexception(e)
             if isinstance(e.orig.__cause__, UniqueViolationError):
                 raise DuplicateUserError("Username or email already in use")
-            await logger.aexception(e)
+            await logger.aexception("integrity_error")
             raise
