@@ -1,8 +1,8 @@
-# src/users/respository.py
+# src/users/repository.py
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.shared.repository import BaseRepository
 
+from src.shared.repository import BaseRepository
 from src.users.models import User
 
 
