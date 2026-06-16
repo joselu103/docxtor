@@ -2,13 +2,15 @@
 
 import structlog
 from asyncpg.exceptions import UniqueViolationError
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.users.models import User
 from src.users.repository import UserRepository
 from src.users.schemas import UserCreate
-from src.users.security import hash_password
+from src.users.security import hash_password, verify_password
+from src.users.tokens import create_access_token, create_refresh_token
 
 logger = structlog.get_logger()
 
@@ -18,6 +20,15 @@ class RegisterError(Exception): ...
 
 
 class DuplicateUserError(RegisterError): ...
+
+
+class LoginError(Exception): ...
+
+
+class UserNotFound(LoginError): ...
+
+
+class WrongPassword(LoginError): ...
 
 
 # Services
@@ -36,7 +47,7 @@ class UserService:
             New user model.
 
         Raises:
-            RegisterError: Unable to register user in the database.
+            DuplicateUserError: Username or email already in use.
         """
         try:
             new_user = User(
@@ -51,3 +62,28 @@ class UserService:
                 raise DuplicateUserError("Username or email already in use")
             await logger.aexception("integrity_error")
             raise
+
+    async def login(self, user_data: OAuth2PasswordRequestForm) -> tuple[str, str]:
+        """Verify the user data and creates an access token.
+
+        Args:
+            user_data: information to log in.
+
+        Returns:
+            Access and refresh tokens
+
+        Raises:
+            UserNotFound: Wrong email
+            WrongPassword: Wrong password
+        """
+        user = await self.user_repo.get_by_email(user_data.username)
+
+        if not user:
+            raise UserNotFound(user_data.username)
+
+        if not verify_password(user_data.password, user.hashed_password):
+            raise WrongPassword
+
+        access_token = create_access_token(str(user.id))
+        refresh_token = create_refresh_token(str(user.id))
+        return (access_token, refresh_token)

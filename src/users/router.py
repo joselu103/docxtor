@@ -2,12 +2,16 @@
 
 from typing import Annotated
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.engine import get_db, transaction
-from src.users.schemas import UserCreate, UserResponse
-from src.users.service import DuplicateUserError, UserService
+from src.users.schemas import TokenResponse, UserCreate, UserResponse
+from src.users.service import DuplicateUserError, LoginError, UserService
+
+logger = structlog.get_logger()
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -42,3 +46,25 @@ async def register_user(
         raise HTTPException(
             status.HTTP_409_CONFLICT, "Username or email already in use."
         )
+
+
+@router.post("/login", response_model=TokenResponse)
+async def login_user(
+    user_service: Annotated[UserService, Depends(get_user_service)],
+    user_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+) -> TokenResponse:
+    """Login user with email and password.
+
+    Returns:
+        Access and Refresh tokens.
+
+    Raises:
+        HTTPException(401): Wrong email or password.
+    """
+    try:
+        access_token, refresh_token = await user_service.login(user_data)
+        return TokenResponse(
+            access_token=access_token, refresh_token=refresh_token, token_type="bearer"
+        )
+    except LoginError:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Wrong email or password.")
