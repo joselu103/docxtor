@@ -5,6 +5,7 @@ from typing import AsyncIterator
 import structlog
 from fastapi import FastAPI
 
+from src.database.engine import dispose_db, init_db
 from src.settings.settings import get_settings
 from src.shared.logging_config import configure_logging
 
@@ -14,11 +15,13 @@ logger = structlog.get_logger()
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # STARTUP
     await logger.ainfo("Application starting up")
+    init_db(app)
 
     yield
 
     # SHUTDOWN
     await logger.ainfo("Application shutting down")
+    await dispose_db(app)
 
 
 def create_app() -> FastAPI:
