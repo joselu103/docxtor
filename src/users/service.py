@@ -47,7 +47,6 @@ class UserService:
             await self.user_repo.create(new_user)
             return new_user
         except IntegrityError as e:
-            await logger.aexception(e)
             if isinstance(e.orig.__cause__, UniqueViolationError):
                 raise DuplicateUserError("Username or email already in use")
             await logger.aexception("integrity_error")
