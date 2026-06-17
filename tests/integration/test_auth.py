@@ -82,13 +82,30 @@ async def test_register_repeated_email(client: AsyncClient, db_session: AsyncSes
 
 
 # /auth/login
-async def test_login_ok(client: AsyncClient, db_session: AsyncSession):
+async def test_login_with_email_ok(client: AsyncClient, db_session: AsyncSession):
     # Given
     user = UserFactory.build()  # password == "password"
     db_session.add(user)
     await db_session.commit()
 
     login_data = {"username": user.email, "password": "password"}
+
+    # When
+    response = await client.post(url="http://test/api/v1/auth/login", data=login_data)
+
+    # Then
+    assert response.status_code == 200
+    TokenResponse.model_validate(response.json())
+    assert response.json()["access_token"]
+
+
+async def test_login_with_username_ok(client: AsyncClient, db_session: AsyncSession):
+    # Given
+    user = UserFactory.build()  # password == "password"
+    db_session.add(user)
+    await db_session.commit()
+
+    login_data = {"username": user.username, "password": "password"}
 
     # When
     response = await client.post(url="http://test/api/v1/auth/login", data=login_data)

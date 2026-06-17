@@ -5,6 +5,7 @@ import uuid
 import structlog
 from asyncpg.exceptions import UniqueViolationError
 from fastapi.security import OAuth2PasswordRequestForm
+from pydantic import EmailStr, TypeAdapter, ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,6 +30,16 @@ from src.users.tokens import (
 )
 
 logger = structlog.get_logger()
+
+email_adapter = TypeAdapter(EmailStr)
+
+
+def _is_email(value: str) -> bool:
+    try:
+        email_adapter.validate_python(value)
+        return True
+    except ValidationError:
+        return False
 
 
 # Services
@@ -73,10 +84,13 @@ class UserService:
             Access and refresh tokens
 
         Raises:
-            UserNotFound: Wrong email
+            UserNotFound: Wrong username/email
             WrongPassword: Wrong password
         """
-        user = await self.user_repo.get_by_email(user_data.username)
+        if _is_email(user_data.username):
+            user = await self.user_repo.get_by_email(user_data.username)
+        else:
+            user = await self.user_repo.get_by_username(user_data.username)
 
         if not user:
             raise UserNotFound(user_data.username)
