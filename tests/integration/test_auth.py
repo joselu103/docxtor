@@ -5,7 +5,6 @@ from datetime import datetime, timedelta, timezone
 
 import faker
 import jwt
-import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -36,12 +35,7 @@ async def test_register_user_ok(client: AsyncClient):
     UserResponse.model_validate(response.json())
 
 
-@pytest.mark.parametrize(
-    "repeated_user, repeated_email", [(True, False), (False, True)]
-)
-async def test_register_new_user_repeated_error(
-    client: AsyncClient, db_session: AsyncSession, repeated_user, repeated_email
-):
+async def test_register_repeated_user(client: AsyncClient, db_session: AsyncSession):
     # Given
     existing_user = UserFactory.build()  # password == "password"
     db_session.add(existing_user)
@@ -49,8 +43,31 @@ async def test_register_new_user_repeated_error(
 
     fake = faker.Faker()
     user_data = UserCreate(
-        email=existing_user.email if repeated_email else fake.email(),
-        username=existing_user.username if repeated_user else fake.user_name(),
+        email=fake.email(),
+        username=existing_user.username,
+        password=fake.password(),
+    )
+
+    # When
+    response = await client.post(
+        url="http://test/api/v1/auth/register", json=user_data.model_dump()
+    )
+
+    # Then
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Username or email already in use."
+
+
+async def test_register_repeated_email(client: AsyncClient, db_session: AsyncSession):
+    # Given
+    existing_user = UserFactory.build()  # password == "password"
+    db_session.add(existing_user)
+    await db_session.commit()
+
+    fake = faker.Faker()
+    user_data = UserCreate(
+        email=existing_user.email,
+        username=fake.user_name(),
         password=fake.password(),
     )
 
@@ -82,18 +99,34 @@ async def test_login_ok(client: AsyncClient, db_session: AsyncSession):
     assert response.json()["access_token"]
 
 
-@pytest.mark.parametrize("wrong_email, wrong_password", [(True, False), (False, True)])
-async def test_login_wrong_data(
-    client: AsyncClient, db_session: AsyncSession, wrong_email, wrong_password
-):
+async def test_login_wrong_email(client: AsyncClient, db_session: AsyncSession):
     # Given
     user = UserFactory.build()  # password == "password"
     db_session.add(user)
     await db_session.commit()
 
     login_data = {
-        "username": "test@test.com" if wrong_email else user.email,
-        "password": "wrong_password" if wrong_password else "password",
+        "username": "test@test.com",
+        "password": "password",
+    }
+
+    # When
+    response = await client.post(url="http://test/api/v1/auth/login", data=login_data)
+
+    # Then
+    assert response.status_code == 401
+    assert "access_token" not in response.json()
+
+
+async def test_login_wrong_password(client: AsyncClient, db_session: AsyncSession):
+    # Given
+    user = UserFactory.build()  # password == "password"
+    db_session.add(user)
+    await db_session.commit()
+
+    login_data = {
+        "username": user.email,
+        "password": "wrong_password",
     }
 
     # When
