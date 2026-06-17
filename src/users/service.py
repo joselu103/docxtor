@@ -1,34 +1,34 @@
 # src/users/service.py
 
+import uuid
+
 import structlog
 from asyncpg.exceptions import UniqueViolationError
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.users.exceptions import (
+    DuplicateUserError,
+    InvalidToken,
+    InvalidTokenType,
+    InvalidUserID,
+    UserNotFound,
+    UserNotFound_,
+    WrongPassword,
+)
 from src.users.models import User
 from src.users.repository import UserRepository
-from src.users.schemas import UserCreate
+from src.users.schemas import RefreshRequest, UserCreate
 from src.users.security import hash_password, verify_password
-from src.users.tokens import create_access_token, create_refresh_token
+from src.users.tokens import (
+    JWTValidationException,
+    create_access_token,
+    create_refresh_token,
+    decode_token,
+)
 
 logger = structlog.get_logger()
-
-
-# Exceptions
-class RegisterError(Exception): ...
-
-
-class DuplicateUserError(RegisterError): ...
-
-
-class LoginError(Exception): ...
-
-
-class UserNotFound(LoginError): ...
-
-
-class WrongPassword(LoginError): ...
 
 
 # Services
@@ -87,3 +87,36 @@ class UserService:
         access_token = create_access_token(str(user.id))
         refresh_token = create_refresh_token(str(user.id))
         return (access_token, refresh_token)
+
+    async def refresh(self, refresh_data: RefreshRequest) -> tuple[str, str]:
+        """Verify the refresh token and return it and a new access token.
+
+        Args:
+            refresh_data: contains the 'refresh_token'.
+
+        Returns:
+            New access token and same refresh token.
+
+        Raises:
+            RefreshToken: Invalid refresh token.
+        """
+        try:
+            payload = decode_token(refresh_data.refresh_token)
+        except JWTValidationException:
+            raise InvalidToken(refresh_data.refresh_token)
+
+        if payload.get("type") != "refresh":
+            raise InvalidTokenType(payload.get("type"))
+
+        try:
+            user_id = uuid.UUID(payload["sub"])
+        except ValueError:
+            raise InvalidUserID(payload["sub"])
+
+        user = await self.user_repo.get_by_id(user_id)
+
+        if not user:
+            raise UserNotFound_(user_id)
+
+        access_token = create_access_token(str(user.id))
+        return (access_token, refresh_data.refresh_token)

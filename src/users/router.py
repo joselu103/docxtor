@@ -8,8 +8,9 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.engine import get_db, transaction
-from src.users.schemas import TokenResponse, UserCreate, UserResponse
-from src.users.service import DuplicateUserError, LoginError, UserService
+from src.users.exceptions import DuplicateUserError, LoginError, RefreshError
+from src.users.schemas import RefreshRequest, TokenResponse, UserCreate, UserResponse
+from src.users.service import UserService
 
 logger = structlog.get_logger()
 
@@ -68,3 +69,27 @@ async def login_user(
         )
     except LoginError:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Wrong email or password.")
+
+
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh_user(
+    user_service: Annotated[UserService, Depends(get_user_service)],
+    refresh_data: RefreshRequest,
+) -> TokenResponse:
+    """Attempt to obtain a new access token with a refresh token.
+
+    Returns:
+        Access and Refresh tokens.
+
+    Raises:
+        HTTPException(401): Refresh token invalid or revoked
+    """
+    try:
+        access_token, refresh_token = await user_service.refresh(refresh_data)
+        return TokenResponse(
+            access_token=access_token, refresh_token=refresh_token, token_type="bearer"
+        )
+    except RefreshError:
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED, "Refresh token invalid or revoked"
+        )
