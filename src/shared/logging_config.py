@@ -21,7 +21,7 @@ def configure_logging() -> None:
     renderer = (
         structlog.dev.ConsoleRenderer()
         if settings.debug
-        else structlog.processors.JSONRenderer
+        else structlog.processors.JSONRenderer()
     )
 
     min_level = logging.DEBUG if settings.debug else logging.INFO
