@@ -18,7 +18,7 @@ settings = get_settings()
 class Doc(BaseModel):
     __tablename__ = "docs"
 
-    title: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    title: Mapped[str] = mapped_column(String, nullable=False)
     chat_id: Mapped[uuid.UUID] = mapped_column(
         UUID, ForeignKey("chats.id"), nullable=False
     )
