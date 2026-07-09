@@ -4,10 +4,14 @@ from unittest.mock import AsyncMock
 
 import faker
 import pytest
+import structlog
 from fastapi import UploadFile
+from llama_index.core.node_parser import SentenceSplitter
 
-from src.docs.service import DocService, InvalidType, _parse_text
+from src.docs.service import DocService, InvalidType, _chunk_text, _parse_text
+from src.settings.settings import get_settings
 
+logger = structlog.get_logger()
 fake = faker.Faker()
 FIXTURES_DIR = Path(__file__).parent.parent / "fixtures"
 
@@ -41,7 +45,7 @@ async def test_parse_text_from_plain_text_file(file_name):
 
     # Then
     for fragment in FILE_START_AND_END:
-        assert fragment in result[0]
+        assert fragment in result
 
 
 async def test_parse_text_from_plain_text_file_csv_like():
@@ -53,9 +57,7 @@ async def test_parse_text_from_plain_text_file_csv_like():
     result = _parse_text(upload_file)
 
     # Then
-    assert result == [
-        "cell 1, cell 2, cell 3, cell 4\ncell 5, cell 6, cell 7, cell 8\n"
-    ]
+    assert result == "cell 1, cell 2, cell 3, cell 4\ncell 5, cell 6, cell 7, cell 8\n"
 
 
 async def test_parse_text_from_pdf():
@@ -68,7 +70,7 @@ async def test_parse_text_from_pdf():
 
     # Then
     for fragment in FILE_START_AND_END:
-        assert fragment in result[0]
+        assert fragment in result
 
 
 @pytest.mark.parametrize(
@@ -86,7 +88,7 @@ async def test_parse_text_from_document(filename):
 
     # Then
     for fragment in FILE_START_AND_END:
-        assert fragment in result[0]
+        assert fragment in result
 
 
 async def test_parse_text_invalid_utf8():
@@ -98,3 +100,23 @@ async def test_parse_text_invalid_utf8():
     with pytest.raises(InvalidType):
         # When
         _parse_text(upload_file)
+
+
+async def test_chunk_text():
+    # Given
+    settings = get_settings()
+    max_chunk_size = 300
+    file_data = (FIXTURES_DIR / "paul_graham_essay.txt").read_bytes().decode("utf-8")
+    splitter = SentenceSplitter(
+        chunk_size=settings.chunk_size, chunk_overlap=settings.chunk_size // 5
+    )
+
+    # When
+    chunks = await _chunk_text(splitter, file_data, max_chunk_size)
+    await logger.adebug("Chunk 1", chunk=chunks[0])
+    await logger.adebug("Chunk 2", chunk=chunks[1])
+
+    # Then
+    assert chunks
+    for chunk in chunks:
+        assert chunk
