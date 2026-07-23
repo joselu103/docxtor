@@ -1,9 +1,11 @@
 # src/shared/repository.py
 import uuid
+from collections.abc import Sequence
 from typing import Generic, TypeVar
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.base import ExecutableOption
 
 from src.shared.models import BaseModel
 
@@ -15,9 +17,15 @@ class BaseRepository(Generic[ModelType]):
         self.session = session
         self.model = model
 
-    async def get_by_id(self, id: uuid.UUID) -> ModelType | None:
+    async def get_by_id(
+        self, id: uuid.UUID, options: Sequence[ExecutableOption] | None = None
+    ) -> ModelType | None:
         """Fetch single record by PK"""
         stmt = select(self.model).where(self.model.id == id)
+
+        if options:
+            stmt = stmt.options(*options)
+
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 

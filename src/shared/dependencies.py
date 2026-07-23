@@ -1,0 +1,62 @@
+# src/shared/dependencies.py
+import uuid
+from typing import Annotated
+
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.database.engine import get_db
+from src.users.models import User
+from src.users.repository import UserRepository
+from src.users.tokens import JWTValidationException, decode_token
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+
+
+async def get_current_user(
+    session: Annotated[AsyncSession, Depends(get_db)],
+    token: Annotated[str, Depends(oauth2_scheme)],
+) -> User:
+    """Resolve the authenticated user from the Bearer token.
+
+    Decodes and validates the JWT, then fetches the corresponding user
+    from the database.
+
+    Returns:
+        The authenticated User instance.
+
+    Raises:
+        HTTPException(401): Token is missing, invalid, expired, or wrong
+            type.
+        HTTPException(404): No user found for the token's subject.
+    """
+    try:
+        payload = decode_token(token)
+    except JWTValidationException:
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED,
+            "Invalid token.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if payload.get("type") != "access":
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED,
+            "Invalid token type.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    try:
+        sub = uuid.UUID(payload["sub"])
+    except ValueError:
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED,
+            "Invalid token subject.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    user = await UserRepository(session).get_by_id(sub)
+    if not user:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found.")
+    return user

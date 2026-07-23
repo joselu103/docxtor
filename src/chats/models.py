@@ -7,6 +7,7 @@ from sqlalchemy import UUID, Boolean, ForeignKey, String, Text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from src.docs.models import Doc
 from src.shared.models import BaseModel
 
 if TYPE_CHECKING:
@@ -29,6 +30,7 @@ class Chat(BaseModel):
         SAEnum(ChatStatus), default=ChatStatus.ACTIVE, nullable=False
     )
     messages: Mapped[list[Message]] = relationship("Message")
+    docs: Mapped[list[Doc]] = relationship("Doc")
 
 
 class Message(BaseModel):
