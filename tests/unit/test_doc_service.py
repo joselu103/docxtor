@@ -6,10 +6,8 @@ import faker
 import pytest
 import structlog
 from fastapi import UploadFile
-from llama_index.core.node_parser import SentenceSplitter
 
-from src.docs.service import DocService, InvalidType, _chunk_text, _parse_text
-from src.settings.settings import get_settings
+from src.docs.service import DocService, InvalidType, _parse_text
 
 logger = structlog.get_logger()
 fake = faker.Faker()
@@ -100,23 +98,3 @@ async def test_parse_text_invalid_utf8():
     with pytest.raises(InvalidType):
         # When
         _parse_text(upload_file)
-
-
-async def test_chunk_text():
-    # Given
-    settings = get_settings()
-    max_chunk_size = 300
-    file_data = (FIXTURES_DIR / "paul_graham_essay.txt").read_bytes().decode("utf-8")
-    splitter = SentenceSplitter(
-        chunk_size=settings.chunk_size, chunk_overlap=settings.chunk_size // 5
-    )
-
-    # When
-    chunks = await _chunk_text(splitter, file_data, max_chunk_size)
-    await logger.adebug("Chunk 1", chunk=chunks[0])
-    await logger.adebug("Chunk 2", chunk=chunks[1])
-
-    # Then
-    assert chunks
-    for chunk in chunks:
-        assert chunk
