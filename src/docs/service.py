@@ -111,7 +111,7 @@ async def _chunk_text(
         nodes = await splitter.aget_nodes_from_documents([Document(text=text)])
         return [node.get_content() for node in nodes]
 
-    except:
+    except Exception:
         logger.exception("Exception while chunking")
         raise ChunkingError("Unable to chunk text")
 
@@ -126,7 +126,7 @@ async def _create_embeddings(
             model=settings.voyage_model,
             input_type="document",
         )
-    except:
+    except Exception:
         logger.exception("Exception while embedding")
         raise EmbeddingError("Unable to embed text chunks")
 
@@ -164,7 +164,7 @@ class DocService:
 
         doc_text = _parse_text(file)
 
-        chunks_text = _chunk_text(self.splitter, doc_text, settings.chunk_size)
+        chunks_text = await _chunk_text(self.splitter, doc_text, settings.chunk_size)
 
         doc = Doc(
             title=file.filename,
@@ -172,9 +172,7 @@ class DocService:
         )
         await self.doc_repo.create(doc)
 
-        embeddings = await _create_embeddings(
-            self.voyageai_client, chunks_text=chunks_text
-        )
+        embeddings = await _create_embeddings(self.embed_model, chunks_text=chunks_text)
 
         for index, (content, embedding) in enumerate(zip(chunks_text, embeddings)):
             chunk = Chunk(
