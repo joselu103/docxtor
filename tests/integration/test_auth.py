@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 import faker
 import jwt
+import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +16,7 @@ from tests.factories import UserFactory
 
 
 # /auth/register
+@pytest.mark.integration
 async def test_register_user_ok(client: AsyncClient):
     # Given
     fake = faker.Faker()
@@ -35,6 +37,7 @@ async def test_register_user_ok(client: AsyncClient):
     UserResponse.model_validate(response.json())
 
 
+@pytest.mark.integration
 async def test_register_repeated_user(client: AsyncClient, db_session: AsyncSession):
     # Given
     existing_user = UserFactory.build()  # password == "password"
@@ -58,6 +61,7 @@ async def test_register_repeated_user(client: AsyncClient, db_session: AsyncSess
     assert response.json()["detail"] == "Username or email already in use."
 
 
+@pytest.mark.integration
 async def test_register_repeated_email(client: AsyncClient, db_session: AsyncSession):
     # Given
     existing_user = UserFactory.build()  # password == "password"
@@ -82,6 +86,7 @@ async def test_register_repeated_email(client: AsyncClient, db_session: AsyncSes
 
 
 # /auth/login
+@pytest.mark.integration
 async def test_login_with_email_ok(client: AsyncClient, db_session: AsyncSession):
     # Given
     user = UserFactory.build()  # password == "password"
@@ -99,6 +104,7 @@ async def test_login_with_email_ok(client: AsyncClient, db_session: AsyncSession
     assert response.json()["access_token"]
 
 
+@pytest.mark.integration
 async def test_login_with_username_ok(client: AsyncClient, db_session: AsyncSession):
     # Given
     user = UserFactory.build()  # password == "password"
@@ -116,6 +122,7 @@ async def test_login_with_username_ok(client: AsyncClient, db_session: AsyncSess
     assert response.json()["access_token"]
 
 
+@pytest.mark.integration
 async def test_login_wrong_email(client: AsyncClient, db_session: AsyncSession):
     # Given
     user = UserFactory.build()  # password == "password"
@@ -135,6 +142,7 @@ async def test_login_wrong_email(client: AsyncClient, db_session: AsyncSession):
     assert "access_token" not in response.json()
 
 
+@pytest.mark.integration
 async def test_login_wrong_password(client: AsyncClient, db_session: AsyncSession):
     # Given
     user = UserFactory.build()  # password == "password"
@@ -155,6 +163,7 @@ async def test_login_wrong_password(client: AsyncClient, db_session: AsyncSessio
 
 
 # /auth/refresh
+@pytest.mark.integration
 async def test_refresh_ok(client: AsyncClient, db_session: AsyncSession):
     # Given
     user = UserFactory.build()  # password == "password"
@@ -176,6 +185,7 @@ async def test_refresh_ok(client: AsyncClient, db_session: AsyncSession):
     assert response.json()["access_token"]
 
 
+@pytest.mark.integration
 def make_refresh_jwt(
     subject: str, expired: bool = False, token_type: str = "refresh"
 ) -> str:
@@ -191,6 +201,7 @@ def make_refresh_jwt(
     )
 
 
+@pytest.mark.integration
 async def test_refresh_invalid_token(client: AsyncClient):
     # Given
     refresh_token = "invalid-refresh-token"
@@ -206,6 +217,7 @@ async def test_refresh_invalid_token(client: AsyncClient):
     assert "access_token" not in response.json()
 
 
+@pytest.mark.integration
 async def test_refresh_invalid_type(client: AsyncClient, db_session: AsyncSession):
     # Given
     user = UserFactory.build()  # password == "password"
@@ -225,6 +237,7 @@ async def test_refresh_invalid_type(client: AsyncClient, db_session: AsyncSessio
     assert "access_token" not in response.json()
 
 
+@pytest.mark.integration
 async def test_refresh_invalid_user_id(client: AsyncClient, db_session: AsyncSession):
     # Given
     user = UserFactory.build()  # password == "password"
@@ -244,6 +257,7 @@ async def test_refresh_invalid_user_id(client: AsyncClient, db_session: AsyncSes
     assert "access_token" not in response.json()
 
 
+@pytest.mark.integration
 async def test_refresh_user_not_found(client: AsyncClient):
     # Given
     refresh_token = make_refresh_jwt(subject=str(uuid.uuid4()))
@@ -259,6 +273,7 @@ async def test_refresh_user_not_found(client: AsyncClient):
     assert "access_token" not in response.json()
 
 
+@pytest.mark.integration
 async def test_refresh_expired_token(
     client: AsyncClient,
     db_session: AsyncSession,
