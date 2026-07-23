@@ -28,7 +28,7 @@ jobs:
           uv run ruff format --check .
       - name: Run tests
         run: |
-          uv run pytest
+          uv run pytest -m "not paid_api"
     services:
       postgres:
         image: pgvector/pgvector:pg16-trixie
