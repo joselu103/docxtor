@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = 7
 
     # Embedding
-    voyage_api_key: SecretStr
+    voyage_api_key: SecretStr = ""
     voyage_model: str
     vector_dim: int
     chunk_size: int
