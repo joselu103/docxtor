@@ -104,9 +104,7 @@ def _parse_doc(file: UploadFile, suffix: str) -> str:
     return result
 
 
-async def _chunk_text(
-    splitter: SentenceSplitter, text: str, chunk_size: int
-) -> list[str]:
+async def _chunk_text(splitter: SentenceSplitter, text: str) -> list[str]:
     try:
         nodes = await splitter.aget_nodes_from_documents([Document(text=text)])
         return [node.get_content() for node in nodes]
